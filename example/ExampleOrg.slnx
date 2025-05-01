@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/ModuleA/">
+    <Project Path="ModuleA/ExampleOrg.ModuleA.Data.Tests/ExampleOrg.ModuleA.Data.Tests.csproj" />
+    <Project Path="ModuleA/ExampleOrg.ModuleA.Data/ExampleOrg.ModuleA.Data.csproj" />
+    <Project Path="ModuleA/ExampleOrg.ModuleA.Web/ExampleOrg.ModuleA.Web.csproj" />
+  </Folder>
+  <Folder Name="/ModuleB/" Id="02ea681e-c7d8-13c7-8484-4ac65e1b71e8">
+    <Project Path="ModuleB/ExampleOrg.ModuleB.API/ExampleOrg.ModuleB.API.csproj" />
+  </Folder>
+  <Folder Name="/Shared/" Id="93043418-f168-4348-b756-307e9f1f1f09">
+    <Project Path="Shared/ExampleOrg.Shared.Utils/ExampleOrg.Shared.Utils.csproj" />
+  </Folder>
+</Solution>

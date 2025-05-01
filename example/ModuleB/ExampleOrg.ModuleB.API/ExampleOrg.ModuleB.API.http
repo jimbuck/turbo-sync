@@ -1,0 +1,6 @@
+@ExampleOrg.ModuleB.API_HostAddress = http://localhost:5158
+
+GET {{ExampleOrg.ModuleB.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

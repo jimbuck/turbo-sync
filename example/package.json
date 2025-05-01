@@ -1,0 +1,12 @@
+{
+	"name": "exampleorg",
+	"workspaces": [
+		"ModuleA/*",
+		"ModuleB/*",
+		"Shared/*"
+	],
+	"devDependencies": {
+		"turbo": "2.5.2",
+		"turbo-sync": ".."
+	}
+}
