@@ -4,8 +4,8 @@ import { readFile, stat } from 'node:fs/promises';
 import { XMLParser } from 'fast-xml-parser';
 import debug from 'debug';
 
-import { PackageJson, TurboSyncPlugin, TurboSyncWorkspaceResult } from '../types';
-import { readJson } from '../utils/file-utils';
+import { PackageJson, TurboSyncPlugin, TurboSyncWorkspaceResult } from '../types.js';
+import { readJson } from '../utils/file-utils.js';
 
 const log = debug('turbo-sync:plugin:dotnet');
 
@@ -46,9 +46,11 @@ export interface DotnetWorkspacesResult extends TurboSyncWorkspaceResult {
 const dotnetPlugin = (config: DotnetPluginConfig) => {
   log('Initializing dotnet plugin with config:', config);
 
-  const xmlParser = new XMLParser();
+  const xmlParser = new XMLParser({ ignoreAttributes: false });
 
   return {
+    name: 'dotnet',
+    workspaceFiles: ['*.csproj'],
     getWorkspaces: async ({ files }) => {
       log(`Scanning ${files.length} files for .NET projects`);
       const projectFiles = files.filter(file => PROJECT_FILE_EXTENSIONS.some(ext => file.endsWith(ext)));
@@ -100,7 +102,7 @@ const dotnetPlugin = (config: DotnetPluginConfig) => {
     return {
       name, ...packageJson,
       scripts: { ...packageJson.scripts, ...scripts },
-      dependencies: { ...packageJson.dependencies, ...dependencies }
+      dependencies: { ...dependencies }
     };
   }
 }
@@ -139,7 +141,7 @@ function getCsProjectType(projectFilePath: string, csproj: any): DotnetProjectTy
     log('Checking project SDK and property groups');
 
     // Check if this is a Web SDK project
-    if (csproj.Project && csproj.Project['Sdk'] && csproj.Project['Sdk'].includes('Microsoft.NET.Sdk.Web')) {
+    if (csproj.Project && csproj.Project['@_Sdk'] && csproj.Project['@_Sdk'].includes('Microsoft.NET.Sdk.Web')) {
       log('Detected web application based on SDK');
       return DotnetProjectType.App;
     }
@@ -177,7 +179,7 @@ function getCsProjectType(projectFilePath: string, csproj: any): DotnetProjectTy
             itemGroup.PackageReference : [itemGroup.PackageReference];
 
           for (const packageRef of packageRefs) {
-            const packageId = packageRef['Include'] || packageRef.Include;
+            const packageId = packageRef['@_Include'] || packageRef.Include;
 
             if (packageId && /xunit|nunit|mstest|fluentassertions|shouldly/i.test(packageId)) {
               log(`Found test framework package: ${packageId}`);
@@ -242,7 +244,7 @@ async function getCsProjectDependencies(projectFilePath: string, csproj: any): P
 
       // Loop through each ProjectReference
       for (const projRef of projectRefs) {
-        const refPath = projRef.Include || projRef['Include'];
+        const refPath = projRef['@_Include'] || projRef.Include;
 
         if (!refPath) continue;
 
@@ -250,13 +252,17 @@ async function getCsProjectDependencies(projectFilePath: string, csproj: any): P
 
         // Resolve the referenced csproj's full path relative to the current projectDir
         const refFullPath = join(projectDir, refPath);
+        log(`Resolved project reference path: ${refFullPath}`);
 
         // Check if the referenced project exists
         try {
           // Using statSync instead of Resolve-Path from PowerShell
           const projectFile = await stat(refFullPath);
 
-          if (!projectFile.isFile()) continue;
+          if (!projectFile.isFile()) {
+            log(`Referenced project is not a file: ${refFullPath}`);
+            continue;
+          }
 
           // Check for existing package.json in the referenced project
           const refPackageJsonPath = join(dirname(refFullPath), 'package.json');

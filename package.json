@@ -2,20 +2,21 @@
   "name": "turbo-sync",
   "version": "1.0.0",
   "description": "CLI tool to update package.json files for non-JS projects in a turborepo repository",
-  "main": "src/index.ts",
-  "bin": {
-    "turbo-sync": "./bin/turbo-sync"
-  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": "./dist/bin.js",
   "scripts": {
     "build": "tsc",
-    "test": "vitest"
+    "test": "vitest",
+    "demo": "cd example && node ../bin/turbo-sync"
   },
   "dependencies": {
     "@types/debug": "^4.1.12",
     "commander": "^8.0.0",
     "debug": "^4.4.0",
     "fast-glob": "^3.3.3",
-    "fast-xml-parser": "^5.2.1"
+    "fast-xml-parser": "^5.2.1",
+    "p-map": "^7.0.3"
   },
   "devDependencies": {
     "typescript": "^4.0.0",

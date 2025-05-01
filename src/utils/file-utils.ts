@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import debug from 'debug';
-import { PackageJson } from '../types';
+import { PackageJson } from '../types.js';
 
 const log = debug('turbo-sync:file-utils');
 

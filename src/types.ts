@@ -19,6 +19,8 @@ export interface TurboSyncWorkspaceResult {
 }
 
 export interface TurboSyncPlugin<TWorkspaceResult extends TurboSyncWorkspaceResult = TurboSyncWorkspaceResult> {
+  readonly name: string;
+  readonly workspaceFiles: string[];
   getWorkspaces: (args: { cwd: string, files: string[] }) => Promise<TWorkspaceResult[]>;
   updateWorkspace: (args: { cwd: string, packageJson: Partial<PackageJson> } & TWorkspaceResult) => Promise<PackageJson | undefined>;
 }
