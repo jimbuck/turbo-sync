@@ -121,24 +121,81 @@ You can override the default scripts and script assignments in the `turbo-sync.d
 
 To develop a new plugin for the `turbo-sync` CLI tool, follow these steps:
 
-1. Create a new TypeScript file in the `src/plugins/` directory.
-2. Implement the plugin interface by defining methods for initializing the plugin and updating `package.json`.
-3. Register the plugin with the CLI tool by adding it to the list of plugins in `src/commands/turbo-sync.ts`.
+1. Create a new TypeScript file in the `src/plugins/` directory (e.g., `src/plugins/myplugin.ts`)
+2. Implement the `TurboSyncPlugin` interface by creating a factory function that returns a plugin object
+3. Export your plugin as the default export
+4. Register the plugin by adding it to the plugins array in `src/plugins/index.ts`
 
 Here is an example of a simple plugin implementation:
 
 ```typescript
-import { Plugin } from "../types";
+import { join } from 'node:path';
+import debug from 'debug';
+import { PackageJson, TurboSyncConfig, TurboSyncPlugin, TurboSyncWorkspaceResult } from '../types.js';
 
-export class ExamplePlugin implements Plugin {
-  async initialize(config: any) {
-    // Initialize the plugin with the provided configuration
-  }
-
-  async updatePackageJson(packageJson: any) {
-    // Update the package.json file
-  }
+// Define plugin-specific configuration interface (optional)
+export interface MyPluginConfig {
+  customSetting?: string;
 }
+
+// Define plugin-specific workspace result interface (optional)
+export interface MyWorkspaceResult extends TurboSyncWorkspaceResult {
+  extraData: string;
+}
+
+// Create a factory function that returns a plugin object
+const myPlugin = (config: TurboSyncConfig) => {
+  // Extract plugin-specific config
+  const myConfig = (config.myplugin ?? {}) as MyPluginConfig;
+  const log = debug('turbo-sync:plugin:myplugin');
+  
+  log('Initializing my plugin with config:', myConfig);
+
+  // Return a plugin object that implements the TurboSyncPlugin interface
+  return {
+    name: 'myplugin',
+    workspaceFiles: ['*.myext'],  // File patterns to look for
+    ignore: ['**/temp/**'],       // Patterns to ignore
+    
+    // Find workspaces based on the files discovered
+    getWorkspaces: async ({ files }) => {
+      log(`Processing ${files.length} files`);
+      
+      return files.map(file => ({
+        workspacePath: join(file, '..'),
+        workspaceName: `my-${file.split('/').pop()}`,
+        extraData: 'some-value'
+      })) as MyWorkspaceResult[];
+    },
+    
+    // Update package.json for each workspace
+    updateWorkspace: async ({ packageJson, workspacePath, extraData }) => {
+      log(`Updating package.json for workspace: ${workspacePath}`);
+      
+      return {
+        ...packageJson,
+        scripts: {
+          ...packageJson.scripts,
+          'custom-script': 'echo "Hello from custom script"'
+        }
+      };
+    }
+  } as TurboSyncPlugin<MyWorkspaceResult>;
+};
+
+export default myPlugin;
+```
+
+After creating your plugin, add it to the plugins list in `src/plugins/index.ts`:
+
+```typescript
+import dotnetPlugin from './dotnet.js';
+import myPlugin from './myplugin.js';
+
+export const plugins = [
+  dotnetPlugin,
+  myPlugin,
+] as const;
 ```
 
 ## License
