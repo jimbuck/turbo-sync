@@ -1,6 +1,6 @@
 {
   "name": "turbo-sync",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "CLI tool to update package.json files for non-JS projects in a turborepo repository",
   "type": "module",
   "main": "./dist/index.js",
