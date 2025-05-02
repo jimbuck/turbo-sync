@@ -1,6 +1,6 @@
 # turbo-sync
 
-One repo, many languages, zero headaces!
+One repo, many languages, zero headaches!
 
 ## Why turbo-sync?
 
