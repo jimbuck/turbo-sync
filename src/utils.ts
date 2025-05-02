@@ -1,8 +1,14 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import debug from 'debug';
-import { PackageJson } from '../types.js';
+import fastGlob from 'fast-glob';
+import pMap from 'p-map';
+
+import { PackageJson, TurboSyncPlugin } from './types.js';
+
 
 const log = debug('turbo-sync:file-utils');
+
+export const IGNORE_FILES = ['**/node_modules/**'];
 
 export async function readJson<T>(filePath: string): Promise<T | undefined> {
   log(`Reading JSON file: ${filePath}`);
@@ -72,4 +78,30 @@ export function hasPackageJsonChanged(original: PackageJson, updated: PackageJso
 
   log('No changes detected');
   return false;
+}
+
+export async function getWorkspaceFiles({ cwd, workspaces, plugin: { workspaceFiles, ignore } }: { cwd: string; workspaces: string[], plugin: TurboSyncPlugin<any> }) {
+  const ignoreFiles = [...IGNORE_FILES, ...ignore];
+  log(`Getting workspace files in ${cwd} for patterns: ${workspaces.join(', ')}`);
+  log(`Using ignore patterns: ${ignoreFiles.join(', ')}`);
+  log(`Using workspace files: ${workspaceFiles.join(', ')}`);
+
+  if (!workspaces) return [];
+
+  const ignoredGlobs = workspaces
+    .filter((glob) => glob.startsWith("!"))
+    .map((glob) => glob.slice(1));
+
+  const includeGlobs = workspaces.filter((glob) => !glob.startsWith("!"));
+
+  const files = await pMap(workspaceFiles.flatMap(workspaceFile => includeGlobs.map(glob => `${glob}/${workspaceFile}`)), async (workspaceGlob) => {
+    return await fastGlob.glob(workspaceGlob, {
+      cwd,
+      onlyFiles: true,
+      absolute: true,
+      ignore: [...ignoreFiles, ...ignoredGlobs],
+    });
+  }, { concurrency: 4 });
+
+  return files.flat();
 }

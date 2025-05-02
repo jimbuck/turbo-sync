@@ -1,9 +1,8 @@
 import { join } from 'node:path';
 import debug from 'debug';
-import { hasPackageJsonChanged, readJson, writeJson } from './utils/file-utils.js';
+import { hasPackageJsonChanged, readJson, writeJson, getWorkspaceFiles } from './utils.js';
 import { PackageJson, RootPackageJson } from './types.js';
-import dotnetPlugin from './plugins/dotnet.js';
-import { getWorkspaceFiles } from './plugins/shared.js';
+import { plugins } from './plugins/index.js';
 
 const log = debug('turbo-sync:lib');
 
@@ -22,24 +21,25 @@ const log = debug('turbo-sync:lib');
 export async function turboSync({ cwd }: { cwd: string }) {
   log(`Processing repository at: ${cwd}`);
 
-  const packageJsonPath = join(cwd, 'package.json');
-  const packageJson = await readJson<RootPackageJson>(packageJsonPath) ?? { workspaces: [] };
-  log(`Found workspaces in package.json: ${packageJson.workspaces?.join(', ') || 'none'}`);
+  const rootPackageJsonPath = join(cwd, 'package.json');
+  const rootPackageJson = await readJson<RootPackageJson>(rootPackageJsonPath) ?? { workspaces: [] };
+  log(`Found workspaces in package.json: ${rootPackageJson.workspaces?.join(', ') || 'none'}`);
 
-  const turboSyncConfig = packageJson['turbo-sync'] || {};
+  const isPnpm = rootPackageJson.packageManager?.startsWith('pnpm') ?? false;
+  log(`Detected package manager: ${isPnpm ? 'pnpm' : 'npm/yarn'}`);
+
+  const turboSyncConfig = rootPackageJson['turbo-sync'] || {};
   log('Using turbo-sync configuration:', turboSyncConfig);
-  const plugins = [
-    dotnetPlugin(turboSyncConfig?.dotnet ?? {}),
-  ] as const;
-  log(`Loaded ${plugins.length} plugins`);
+  const registeredPlugins = plugins.map(plugin => plugin(turboSyncConfig ?? {}),)
+  log(`Loaded ${registeredPlugins.length} plugins`);
 
-  const workspaceGlobs = packageJson.workspaces || [];
+  const workspaceGlobs = rootPackageJson.workspaces || [];
   log(`Finding files in workspaces: ${workspaceGlobs.join(', ')}`);
 
-  for (const plugin of plugins) {
+  for (const plugin of registeredPlugins) {
     log(`Processing plugin: ${plugin.name}`);
 
-    const files = await getWorkspaceFiles({ cwd, workspaces: workspaceGlobs, workspaceFiles: plugin.workspaceFiles });
+    const files = await getWorkspaceFiles({ cwd, workspaces: workspaceGlobs, plugin });
     log(`Found ${files.length} files in workspaces`);
 
     let workspaces = await plugin.getWorkspaces({ cwd, files });
@@ -51,7 +51,7 @@ export async function turboSync({ cwd }: { cwd: string }) {
       const workspacePackageJson = await readJson<PackageJson>(workspacePackageJsonPath) ?? { name: workspace.workspaceName };
       log(`Found existing package.json: ${workspacePackageJson ? 'yes' : 'no'}`);
 
-      const updatedPackageJson = await plugin.updateWorkspace({ cwd, packageJson: workspacePackageJson, ...workspace }) ?? { name: workspace.workspaceName };
+      const updatedPackageJson = await plugin.updateWorkspace({ cwd, isPnpm, packageJson: workspacePackageJson, ...workspace }) ?? { name: workspace.workspaceName };
       if (hasPackageJsonChanged(workspacePackageJson, updatedPackageJson)) {
         log(`Changes detected in ${workspace.workspaceName}, writing updated package.json`);
         await writeJson(workspacePackageJsonPath, updatedPackageJson);

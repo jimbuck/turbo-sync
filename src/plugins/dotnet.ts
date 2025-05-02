@@ -4,8 +4,8 @@ import { readFile, stat } from 'node:fs/promises';
 import { XMLParser } from 'fast-xml-parser';
 import debug from 'debug';
 
-import { PackageJson, TurboSyncPlugin, TurboSyncWorkspaceResult } from '../types.js';
-import { readJson } from '../utils/file-utils.js';
+import { PackageJson, TurboSyncConfig, TurboSyncPlugin, TurboSyncWorkspaceResult } from '../types.js';
+import { readJson } from '../utils.js';
 
 const log = debug('turbo-sync:plugin:dotnet');
 
@@ -26,31 +26,34 @@ const DEFAULT_SCRIPTS = {
 } as const;
 type DotnetScripts = keyof typeof DEFAULT_SCRIPTS;
 
-const DEFAULT_ASSIGNMENTS: Record<DotnetProjectType, DotnetScripts[]> = {
+const DEFAULT_SCRIPT_ASSIGNMENTS: Record<DotnetProjectType, DotnetScripts[]> = {
   [DotnetProjectType.App]: ['dev', 'clean', 'build', 'typecheck'],
   [DotnetProjectType.Library]: ['clean', 'build', 'typecheck'],
   [DotnetProjectType.Test]: ['clean', 'build', 'typecheck', 'test'],
   [DotnetProjectType.E2E]: ['clean', 'build', 'typecheck', 'e2e'],
 };
 
-const PROJECT_FILE_EXTENSIONS = ['.csproj'];
+const PROJECT_FILE_EXTENSIONS = ['.csproj', '.fsproj', '.vbproj'];
 
 export interface DotnetPluginConfig {
-  defaultScripts?: Record<DotnetProjectType, string[]>;
+  scripts?: Record<string, string>;
+  scriptAssignments?: Record<DotnetProjectType, string[]>;
 };
 
 export interface DotnetWorkspacesResult extends TurboSyncWorkspaceResult {
   projectFile: string;
 }
 
-const dotnetPlugin = (config: DotnetPluginConfig) => {
+const dotnetPlugin = (config: TurboSyncConfig) => {
+  const dotnetConfig = (config.dotnet ?? {}) as DotnetPluginConfig;
   log('Initializing dotnet plugin with config:', config);
 
-  const xmlParser = new XMLParser({ ignoreAttributes: false });
+  const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
 
   return {
     name: 'dotnet',
-    workspaceFiles: ['*.csproj'],
+    workspaceFiles: ['*.csproj', '*.fsproj', '*.vbproj'],
+    ignore: ['**/bin/**', '**/obj/**'],
     getWorkspaces: async ({ files }) => {
       log(`Scanning ${files.length} files for .NET projects`);
       const projectFiles = files.filter(file => PROJECT_FILE_EXTENSIONS.some(ext => file.endsWith(ext)));
@@ -67,35 +70,30 @@ const dotnetPlugin = (config: DotnetPluginConfig) => {
         return workspace;
       });
     },
-    updateWorkspace: async ({ packageJson, projectFile }) => {
+    updateWorkspace: async ({ packageJson, projectFile, isPnpm }) => {
       log(`Updating package.json for project file: ${projectFile}`);
-      const updatedPackageJson = await updatePackageJson(projectFile, packageJson);
+      const updatedPackageJson = await updatePackageJson({ projectFilePath: projectFile, packageJson, isPnpm });
       return updatedPackageJson;
     }
   } as TurboSyncPlugin<DotnetWorkspacesResult>;
 
-  function updatePackageJson(projectFilePath: string, packageJson: Partial<PackageJson>) {
-    log(`Selecting update strategy for project file: ${projectFilePath}`);
-    if (projectFilePath.endsWith('.csproj')) return updatePackageJsonForCsProj(projectFilePath, packageJson);
-  }
-
-  async function updatePackageJsonForCsProj(projectFilePath: string, packageJson: Partial<PackageJson>): Promise<PackageJson> {
-    log(`Reading .csproj file: ${projectFilePath}`);
+  async function updatePackageJson({ projectFilePath, packageJson, isPnpm }: { projectFilePath: string, packageJson: Partial<PackageJson>, isPnpm: boolean }): Promise<PackageJson> {
+    log(`Reading project file: ${projectFilePath}`);
     const content = await readFile(projectFilePath, 'utf-8');
     log('Parsing XML content');
-    const csproj = xmlParser.parse(content);
+    const projectFile = xmlParser.parse(content);
     const name = getProjectName(projectFilePath);
     log(`Project name: ${name}`);
 
-    const projectType = getCsProjectType(projectFilePath, csproj);
+    const projectType = getProjectType(projectFilePath, projectFile);
     log(`Detected project type: ${projectType}`);
 
-    const scripts = DEFAULT_ASSIGNMENTS[projectType].reduce((acc, script) => {
+    const scripts = DEFAULT_SCRIPT_ASSIGNMENTS[projectType].reduce((acc, script) => {
       const scriptCommand = DEFAULT_SCRIPTS[script];
       acc[script] = scriptCommand;
       return acc;
     }, {} as Record<string, string>);
-    const dependencies = await getCsProjectDependencies(projectFilePath, csproj);
+    const dependencies = await getProjectDependencies({ projectFilePath, projectFile, isPnpm });
 
     log('Preparing updated package.json');
 
@@ -105,7 +103,7 @@ const dotnetPlugin = (config: DotnetPluginConfig) => {
       dependencies: { ...dependencies }
     };
   }
-}
+};
 
 export default dotnetPlugin;
 
@@ -117,7 +115,7 @@ function getProjectName(projectFilePath: string): string {
   return formattedName;
 }
 
-function getCsProjectType(projectFilePath: string, csproj: any): DotnetProjectType {
+function getProjectType(projectFilePath: string, projectFile: any): DotnetProjectType {
   const log = debug('turbo-sync:plugin:dotnet:projectType');
   log(`Determining project type for: ${projectFilePath}`);
 
@@ -136,20 +134,20 @@ function getCsProjectType(projectFilePath: string, csproj: any): DotnetProjectTy
     return DotnetProjectType.E2E;
   }
 
-  // For the remaining checks, we need to parse the csproj file
+  // For the remaining checks, we need to parse the proj file
   try {
     log('Checking project SDK and property groups');
 
     // Check if this is a Web SDK project
-    if (csproj.Project && csproj.Project['@_Sdk'] && csproj.Project['@_Sdk'].includes('Microsoft.NET.Sdk.Web')) {
+    if (projectFile.Project && projectFile.Project['@_Sdk'] && projectFile.Project['@_Sdk'].includes('Microsoft.NET.Sdk.Web')) {
       log('Detected web application based on SDK');
       return DotnetProjectType.App;
     }
 
     // Check for console apps (OutputType = Exe) or Azure Functions
-    if (csproj.Project && csproj.Project.PropertyGroup) {
-      const propertyGroups = Array.isArray(csproj.Project.PropertyGroup) ?
-        csproj.Project.PropertyGroup : [csproj.Project.PropertyGroup];
+    if (projectFile.Project && projectFile.Project.PropertyGroup) {
+      const propertyGroups = Array.isArray(projectFile.Project.PropertyGroup) ?
+        projectFile.Project.PropertyGroup : [projectFile.Project.PropertyGroup];
 
       for (const propertyGroup of propertyGroups) {
         // Check for console apps (OutputType = Exe)
@@ -166,12 +164,12 @@ function getCsProjectType(projectFilePath: string, csproj: any): DotnetProjectTy
     }
 
     // Look for test frameworks in package references
-    if (csproj.Project && csproj.Project.ItemGroup) {
+    if (projectFile.Project && projectFile.Project.ItemGroup) {
       log('Analyzing package references');
       let hasE2EPackages = false;
       let hasTestPackages = false;
 
-      const itemGroups = Array.isArray(csproj.Project.ItemGroup) ? csproj.Project.ItemGroup : [csproj.Project.ItemGroup];
+      const itemGroups = Array.isArray(projectFile.Project.ItemGroup) ? projectFile.Project.ItemGroup : [projectFile.Project.ItemGroup];
 
       for (const itemGroup of itemGroups) {
         if (itemGroup.PackageReference) {
@@ -215,7 +213,7 @@ function getCsProjectType(projectFilePath: string, csproj: any): DotnetProjectTy
 
 }
 
-async function getCsProjectDependencies(projectFilePath: string, csproj: any): Promise<Record<string, string>> {
+async function getProjectDependencies({ projectFilePath, projectFile, isPnpm }: { projectFilePath: string, projectFile: any, isPnpm: boolean }): Promise<Record<string, string>> {
   const log = debug('turbo-sync:plugin:dotnet:dependencies');
   log(`Analyzing project dependencies for: ${projectFilePath}`);
 
@@ -223,13 +221,13 @@ async function getCsProjectDependencies(projectFilePath: string, csproj: any): P
   const projectDir = dirname(projectFilePath);
 
   // Check if Project.ItemGroup exists and is not empty
-  if (csproj.Project && csproj.Project.ItemGroup) {
+  if (projectFile.Project && projectFile.Project.ItemGroup) {
     log('Found ItemGroups in project file');
 
     // Handle both single ItemGroup and array of ItemGroups
-    const itemGroups = Array.isArray(csproj.Project.ItemGroup)
-      ? csproj.Project.ItemGroup
-      : [csproj.Project.ItemGroup];
+    const itemGroups = Array.isArray(projectFile.Project.ItemGroup)
+      ? projectFile.Project.ItemGroup
+      : [projectFile.Project.ItemGroup];
 
     // Loop through each ItemGroup
     for (const itemGroup of itemGroups) {
@@ -250,7 +248,7 @@ async function getCsProjectDependencies(projectFilePath: string, csproj: any): P
 
         log(`Processing project reference: ${refPath}`);
 
-        // Resolve the referenced csproj's full path relative to the current projectDir
+        // Resolve the referenced project file's full path relative to the current projectDir
         const refFullPath = join(projectDir, refPath);
         log(`Resolved project reference path: ${refFullPath}`);
 
@@ -271,8 +269,8 @@ async function getCsProjectDependencies(projectFilePath: string, csproj: any): P
           log(`Found reference with package.json: ${formattedRefName}`);
 
           // Add the dependency to the collection
-          dependencies[formattedRefName] = '*';
-          log(`Added dependency: ${formattedRefName} = *`);
+          dependencies[formattedRefName] = isPnpm ? 'workspace:*' : '*';
+          log(`Added dependency: ${formattedRefName} = ${dependencies[formattedRefName]}`);
         } catch (error) {
           log(`Could not resolve reference '${refPath}' in ${projectFilePath}: ${error}`);
           continue;
