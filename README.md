@@ -1,6 +1,28 @@
 # turbo-sync
 
-A tool for managing multi-language workspaces in turborepo.
+One repo, many languages, zero headaces!
+
+## Why turbo-sync?
+
+Managing monorepos with multiple languages can be a real headache. Turborepo works great for JavaScript projects, but once you start adding .NET, Python, or other languages to the mix, things get complicated fast.
+
+When you have a mix of JS and non-JS projects, you end up with two worlds that don't talk to each other:
+
+- Your JS projects with neat package.json files and script commands
+- Your other projects (.NET, Python, etc.) that Turborepo doesn't understand
+
+This leads to inconsistent workflows, broken dependency graphs, and that frustrating feeling of "why can't all my projects just work together?"
+
+That's where turbo-sync comes in! It bridges the gap by automatically:
+
+1. Discovering your non-JS projects (.NET, etc.)
+2. Creating or updating package.json files for them
+3. Adding appropriate scripts based on project type
+4. Mapping dependencies correctly in your workspace
+
+The result? A unified workflow where `turbo build` or `turbo test` just works across your entire codebase, regardless of language. Your dependency graph becomes complete, incremental builds work properly, and you get all the benefits of Turborepo for your entire project.
+
+No more context switching between different build systems or remembering different commands for different project types. Just a smooth, consistent developer experience across your whole monorepo.
 
 ## Installation
 
