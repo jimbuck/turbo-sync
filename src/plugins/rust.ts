@@ -106,7 +106,7 @@ function getProjectName({ cargoFile, cargoData, packageJson }: { cargoFile: stri
 	}
 	const projectName = basename(dirname(cargoFile));
 	const formattedName = `@rust/${projectName}`;
-	log(`Project name from Cargo.toml: ${cargoData.package.name}`);
+	log(`Project name computed from directory name: ${formattedName}`);
 	return formattedName;
 }
 
