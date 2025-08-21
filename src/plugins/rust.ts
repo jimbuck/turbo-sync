@@ -94,7 +94,7 @@ const rustPlugin = (config: TurboSyncConfig) => {
 
 export default rustPlugin;
 
-function getProjectName({ cargoFile, cargoData, packageJson }: { cargoFile: string, cargoData: any, packageJson: Partial<PackageJson> | undefined }): string {
+function getProjectName({ cargoFile, cargoData, packageJson }: { cargoFile: string, cargoData: CargoToml | undefined, packageJson: Partial<PackageJson> | undefined }): string {
 	if (packageJson?.name) {
 		log(`Project name from package.json: ${packageJson.name}`);
 		return packageJson.name;
