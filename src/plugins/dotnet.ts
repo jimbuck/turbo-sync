@@ -4,7 +4,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { XMLParser } from 'fast-xml-parser';
 import debug from 'debug';
 
-import { PackageJson, TurboSyncConfig, TurboSyncPlugin, TurboSyncWorkspaceResult } from '../types.js';
+import { PackageJson, TurboSyncConfig, TurboSyncPluginDefinition, TurboSyncPlugin, TurboSyncWorkspaceResult } from '../types.js';
 import { readJson } from '../utils.js';
 
 const log = debug('turbo-sync:plugin:dotnet');
@@ -44,68 +44,62 @@ export interface DotnetWorkspacesResult extends TurboSyncWorkspaceResult {
   projectFile: string;
 }
 
-const dotnetPlugin = (config: TurboSyncConfig) => {
-  const dotnetConfig = (config.dotnet ?? {}) as DotnetPluginConfig;
-  log('Initializing dotnet plugin with config:', config);
+export const dotnetPlugin: TurboSyncPluginDefinition<DotnetWorkspacesResult> = {
+  name: 'dotnet',
+  workspaceFiles: ['*.csproj', '*.fsproj', '*.vbproj'],
+  ignore: ['**/bin/**', '**/obj/**'],
+  build(config: TurboSyncConfig) {
+    const dotnetConfig = (config.dotnet ?? {}) as DotnetPluginConfig;
+    log('Initializing dotnet plugin with config:', config);
 
-  const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
-
-  return {
-    name: 'dotnet',
-    workspaceFiles: ['*.csproj', '*.fsproj', '*.vbproj'],
-    ignore: ['**/bin/**', '**/obj/**'],
-    getWorkspaces: async ({ files }) => {
-      log(`Scanning ${files.length} files for .NET projects`);
-      const projectFiles = files.filter(file => PROJECT_FILE_EXTENSIONS.some(ext => file.endsWith(ext)));
-      log(`Found ${projectFiles.length} .NET project files`);
-
-      return projectFiles.map(file => {
-        const workspace = {
-          workspacePath: join(file, '..'),
-          workspaceName: getProjectName(file),
-          projectFile: file,
-        } as DotnetWorkspacesResult;
-
-        log(`Found workspace: ${workspace.workspaceName} at ${workspace.workspacePath}`);
-        return workspace;
-      });
-    },
-    updateWorkspace: async ({ packageJson, projectFile, isPnpm }) => {
-      log(`Updating package.json for project file: ${projectFile}`);
-      const updatedPackageJson = await updatePackageJson({ projectFilePath: projectFile, packageJson, isPnpm });
-      return updatedPackageJson;
-    }
-  } as TurboSyncPlugin<DotnetWorkspacesResult>;
-
-  async function updatePackageJson({ projectFilePath, packageJson, isPnpm }: { projectFilePath: string, packageJson: Partial<PackageJson>, isPnpm: boolean }): Promise<PackageJson> {
-    log(`Reading project file: ${projectFilePath}`);
-    const content = await readFile(projectFilePath, 'utf-8');
-    log('Parsing XML content');
-    const projectFile = xmlParser.parse(content);
-    const name = getProjectName(projectFilePath);
-    log(`Project name: ${name}`);
-
-    const projectType = getProjectType(projectFilePath, projectFile);
-    log(`Detected project type: ${projectType}`);
-
-    const scripts = DEFAULT_SCRIPT_ASSIGNMENTS[projectType].reduce((acc, script) => {
-      const scriptCommand = DEFAULT_SCRIPTS[script];
-      acc[script] = scriptCommand;
-      return acc;
-    }, {} as Record<string, string>);
-    const dependencies = await getProjectDependencies({ projectFilePath, projectFile, isPnpm });
-
-    log('Preparing updated package.json');
+    const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
 
     return {
-      name, ...packageJson,
-      scripts: { ...packageJson.scripts, ...scripts },
-      dependencies: { ...dependencies }
+      getWorkspaces: async ({ files }) => {
+        log(`Scanning ${files.length} files for .NET projects`);
+        const projectFiles = files.filter(file => PROJECT_FILE_EXTENSIONS.some(ext => file.endsWith(ext)));
+        log(`Found ${projectFiles.length} .NET project files`);
+
+        return projectFiles.map(file => {
+          const workspace = {
+            workspacePath: join(file, '..'),
+            workspaceName: getProjectName(file),
+            projectFile: file,
+          } as DotnetWorkspacesResult;
+
+          log(`Found workspace: ${workspace.workspaceName} at ${workspace.workspacePath}`);
+          return workspace;
+        });
+      },
+      updateWorkspace: async ({ packageJson, projectFile, isPnpm }) => {
+        log(`Updating package.json for project file: ${projectFile}`);
+        const content = await readFile(projectFile, 'utf-8');
+        log('Parsing XML content');
+        const projectData = xmlParser.parse(content);
+        const name = getProjectName(projectFile);
+        log(`Project name: ${name}`);
+
+        const projectType = getProjectType(projectFile, projectData);
+        log(`Detected project type: ${projectType}`);
+
+        const scripts = DEFAULT_SCRIPT_ASSIGNMENTS[projectType].reduce((acc, script) => {
+          const scriptCommand = DEFAULT_SCRIPTS[script];
+          acc[script] = packageJson.scripts?.[script] ?? scriptCommand;
+          return acc;
+        }, {} as Record<string, string>);
+        const dependencies = await getProjectDependencies({ projectFilePath: projectFile, projectFile: projectData, isPnpm });
+
+        log('Preparing updated package.json');
+
+        return {
+          name, ...packageJson,
+          scripts: { ...packageJson.scripts, ...scripts },
+          dependencies: { ...dependencies }
+        };
+      }
     };
   }
 };
-
-export default dotnetPlugin;
 
 function getProjectName(projectFilePath: string): string {
   const projectName = basename(projectFilePath, extname(projectFilePath));

@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import toml from 'toml';
 import debug from 'debug';
 
-import { PackageJson, TurboSyncConfig, TurboSyncPlugin, TurboSyncWorkspaceResult } from '../types.js';
+import { PackageJson, TurboSyncConfig, TurboSyncPlugin, TurboSyncPluginDefinition, TurboSyncWorkspaceResult } from '../types.js';
 import { readJson } from '../utils.js';
 import pMap from 'p-map';
 
@@ -26,73 +26,73 @@ export interface RustWorkspacesResult extends TurboSyncWorkspaceResult {
 	cargoFile: string;
 }
 
-const rustPlugin = (config: TurboSyncConfig) => {
-	const rustConfig = (config.rust ?? {}) as RustPluginConfig;
-	log('Initializing rust plugin with config:', config);
+export const rustPlugin: TurboSyncPluginDefinition<RustWorkspacesResult> = {
+	name: 'rust',
+	workspaceFiles: [CARGO_FILE],
+	ignore: ['**/target/**'],
+	build(config: TurboSyncConfig) {
+		const rustConfig = (config.rust ?? {}) as RustPluginConfig;
+		log('Initializing rust plugin with config:', config);
 
-	return {
-		name: 'rust',
-		workspaceFiles: [CARGO_FILE],
-		ignore: ['**/target/**'],
-		getWorkspaces: async ({ files }) => {
-			log(`Scanning ${files.length} files for Rust projects`);
-			const cargoFiles = files.filter(file => basename(file) === CARGO_FILE);
-			log(`Found ${cargoFiles.length} Rust project files`);
+		return {
+			getWorkspaces: async ({ files }) => {
+				log(`Scanning ${files.length} files for Rust projects`);
+				const cargoFiles = files.filter(file => basename(file) === CARGO_FILE);
+				log(`Found ${cargoFiles.length} Rust project files`);
 
-			const workspaces = pMap(cargoFiles, async (cargoFile) => {
-				const packageJson = await readJson<PackageJson>(join(dirname(cargoFile), 'package.json'));
+				const workspaces = pMap(cargoFiles, async (cargoFile) => {
+					const packageJson = await readJson<PackageJson>(join(dirname(cargoFile), 'package.json'));
+					const cargoData = await readTomlFile(cargoFile);
+
+					const workspace = {
+						workspacePath: dirname(cargoFile),
+						workspaceName: getProjectName({ cargoFile: cargoFile, cargoData, packageJson }),
+						cargoFile: cargoFile,
+					} as RustWorkspacesResult;
+
+					log(`Found workspace: ${workspace.workspaceName} at ${workspace.workspacePath}`);
+					return workspace;
+				});
+
+				return workspaces;
+			},
+			updateWorkspace: async ({ packageJson, isPnpm, cargoFile }) => {
+				log(`Updating package.json for cargo file: ${cargoFile}`);
+
+				log(`Reading cargo file: ${cargoFile}`);
 				const cargoData = await readTomlFile(cargoFile);
+				const name = getProjectName({ cargoFile, cargoData, packageJson });
+				log(`Project name: ${name}`);
 
-				const workspace = {
-					workspacePath: dirname(cargoFile),
-					workspaceName: getProjectName({ cargoFile: cargoFile, cargoData, packageJson }),
-					cargoFile: cargoFile,
-				} as RustWorkspacesResult;
+				const dependencies: Record<string, string> = {};
 
-				log(`Found workspace: ${workspace.workspaceName} at ${workspace.workspacePath}`);
-				return workspace;
-			});
+				for (const [key, value] of Object.entries(cargoData.dependencies || {})) {
+					// Handle dependencies that might be objects with path or version
+					if (value && typeof value === 'object' && 'path' in value && typeof value.path === 'string') {
+						const depPath = value.path;
+						const depCargoFile = join(dirname(cargoFile), depPath, CARGO_FILE);
+						const depCargoData = await readTomlFile(depCargoFile);
+						const depPackageJsonFile = join(dirname(cargoFile), depPath, 'package.json');
+						const depPackageJson = await readJson<PackageJson>(depPackageJsonFile);
+						const depName = getProjectName({ cargoFile: depCargoFile, cargoData: depCargoData, packageJson: depPackageJson });
+						log(`Found path dependency: ${key} with path ${depPath}, cargo file: ${depCargoFile}`);
 
-			return workspaces;
-		},
-		updateWorkspace: async ({ packageJson, isPnpm, cargoFile }) => {
-			log(`Updating package.json for cargo file: ${cargoFile}`);
-
-			log(`Reading cargo file: ${cargoFile}`);
-			const cargoData = await readTomlFile(cargoFile);
-			const name = getProjectName({ cargoFile, cargoData, packageJson });
-			log(`Project name: ${name}`);
-
-			const dependencies: Record<string, string> = {};
-
-			for (const [key, value] of Object.entries(cargoData.dependencies || {})) {
-				// Handle dependencies that might be objects with path or version
-				if (value && typeof value === 'object' && 'path' in value && typeof value.path === 'string') {
-					const depPath = value.path;
-					const depCargoFile = join(dirname(cargoFile), depPath, CARGO_FILE);
-					const depCargoData = await readTomlFile(depCargoFile);
-					const depPackageJsonFile = join(dirname(cargoFile), depPath, 'package.json');
-					const depPackageJson = await readJson<PackageJson>(depPackageJsonFile);
-					const depName = getProjectName({ cargoFile: depCargoFile, cargoData: depCargoData, packageJson: depPackageJson });
-					log(`Found path dependency: ${key} with path ${depPath}, cargo file: ${depCargoFile}`);
-
-					// Use the path in the dependency name to indicate the relationship
-					dependencies[depName] = isPnpm ? 'workspace:*' : '*';
+						// Use the path in the dependency name to indicate the relationship
+						dependencies[depName] = isPnpm ? 'workspace:*' : '*';
+					}
 				}
+
+				log('Preparing updated package.json');
+
+				return {
+					name, ...packageJson,
+					scripts: { ...packageJson.scripts, ...DEFAULT_SCRIPTS },
+					dependencies: { ...packageJson.dependencies, ...dependencies },
+				};
 			}
-
-			log('Preparing updated package.json');
-
-			return {
-				name, ...packageJson,
-				scripts: { ...packageJson.scripts, ...DEFAULT_SCRIPTS },
-				dependencies: { ...packageJson.dependencies, ...dependencies },
-			};
-		}
-	} as TurboSyncPlugin<RustWorkspacesResult>;
-};
-
-export default rustPlugin;
+		} as TurboSyncPlugin<RustWorkspacesResult>;
+	}
+}
 
 function getProjectName({ cargoFile, cargoData, packageJson }: { cargoFile: string, cargoData: any, packageJson: Partial<PackageJson> | undefined }): string {
 	if (packageJson?.name) {
