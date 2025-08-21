@@ -7,11 +7,11 @@ describe('rust plugin', () => {
 	let memFs: FileSystemHelper;
 
 	beforeEach(() => {
-		memFs = setupMemFs();
+		// memFs will be set up per test with the required file structure
 	});
 
 	afterEach(() => {
-		memFs.restore();
+		memFs?.restore();
 		vi.resetModules();
 	});
 
@@ -60,7 +60,7 @@ describe('rust plugin', () => {
 			.withRustProject('util-crate');
 
 		// Add dependency in Cargo.toml
-		builder.withFile('/workspace/main-crate/Cargo.toml', `
+		builder.withFile('main-crate/Cargo.toml', `
 [package]
 name = "main-crate"
 version = "0.1.0"
@@ -103,7 +103,7 @@ util-crate = { path = "../util-crate" }
 		const builder = new ProjectBuilder('/workspace');
 
 		// Add Cargo.toml with custom metadata
-		builder.withFile('/workspace/custom-crate/Cargo.toml', `
+		builder.withFile('custom-crate/Cargo.toml', `
 [package]
 name = "custom-crate"
 version = "0.1.0"
@@ -111,8 +111,10 @@ edition = "2021"
 
 [package.metadata.turbo-sync]
 name = "custom-package-name"
-scripts.build = "cargo build --release"
-scripts.test = "cargo test -- --nocapture"
+
+[package.metadata.turbo-sync.scripts]
+build = "cargo build --release"
+test = "cargo test -- --nocapture"
 
 [dependencies]
 `);

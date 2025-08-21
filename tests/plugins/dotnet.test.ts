@@ -7,11 +7,11 @@ describe('dotnet plugin', () => {
 	let memFs: any;
 
 	beforeEach(() => {
-		memFs = setupMemFs();
+		// memFs will be set up per test with the required file structure
 	});
 
 	afterEach(() => {
-		memFs.restore();
+		memFs?.restore();
 		vi.resetModules();
 	});
 
@@ -96,7 +96,7 @@ describe('dotnet plugin', () => {
 			.withDotNetProject('core', 'lib');
 
 		// Add project reference
-		builder.withFile('/workspace/api/api.csproj', `
+		builder.withFile('api/api.csproj', `
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>

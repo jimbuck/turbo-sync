@@ -11,6 +11,12 @@ interface CargoToml {
 	package?: {
 		name?: string;
 		version?: string;
+		metadata?: {
+			'turbo-sync'?: {
+				name?: string;
+				scripts?: Record<string, string>;
+			};
+		};
 	};
 	dependencies?: Record<string, string | { path: string }>;
 }
@@ -48,7 +54,7 @@ export const rustPlugin: TurboSyncPluginDefinition<RustWorkspacesResult> = {
 				const cargoFiles = files.filter(file => basename(file) === CARGO_FILE);
 				log(`Found ${cargoFiles.length} Rust project files`);
 
-				const workspaces = pMap(cargoFiles, async (cargoFile) => {
+				const workspaces = pMap(cargoFiles, async (cargoFile: string) => {
 					const packageJson = await readJson<PackageJson>(join(dirname(cargoFile), 'package.json'));
 					const cargoData = await readTomlFile(cargoFile);
 
@@ -92,9 +98,13 @@ export const rustPlugin: TurboSyncPluginDefinition<RustWorkspacesResult> = {
 
 				log('Preparing updated package.json');
 
+				// Get custom scripts from metadata if available
+				const customScripts = cargoData?.package?.metadata?.['turbo-sync']?.scripts || {};
+				const scripts = { ...DEFAULT_SCRIPTS, ...customScripts };
+
 				return {
 					name, ...packageJson,
-					scripts: { ...packageJson.scripts, ...DEFAULT_SCRIPTS },
+					scripts: { ...packageJson.scripts, ...scripts },
 					dependencies: { ...packageJson.dependencies, ...dependencies },
 				};
 			}
@@ -106,6 +116,13 @@ function getProjectName({ cargoFile, cargoData, packageJson }: { cargoFile: stri
 	if (packageJson?.name) {
 		log(`Project name from package.json: ${packageJson.name}`);
 		return packageJson.name;
+	}
+
+	// Check for custom metadata first
+	if (cargoData?.package?.metadata?.['turbo-sync']?.name) {
+		const customName = cargoData.package.metadata['turbo-sync'].name;
+		log(`Project name from Cargo.toml metadata: ${customName}`);
+		return customName;
 	}
 
 	if (cargoData && cargoData.package && cargoData.package.name) {

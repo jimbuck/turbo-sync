@@ -83,7 +83,7 @@ export const dotnetPlugin: TurboSyncPluginDefinition<DotnetWorkspacesResult> = {
         log(`Detected project type: ${projectType}`);
 
         const scripts = DEFAULT_SCRIPT_ASSIGNMENTS[projectType].reduce((acc, script) => {
-          const scriptCommand = DEFAULT_SCRIPTS[script];
+          const scriptCommand = dotnetConfig.scripts?.[script] ?? DEFAULT_SCRIPTS[script];
           acc[script] = packageJson.scripts?.[script] ?? scriptCommand;
           return acc;
         }, {} as Record<string, string>);
@@ -104,7 +104,8 @@ export const dotnetPlugin: TurboSyncPluginDefinition<DotnetWorkspacesResult> = {
 function getProjectName(projectFilePath: string): string {
   const projectName = basename(projectFilePath, extname(projectFilePath));
   const [prefix, ...suffixes] = projectName.toLowerCase().split('.');
-  const formattedName = `@${prefix}/${suffixes.join('-').replace(/[\-\_]/gi, '-')}`;
+  const suffixPart = suffixes.length > 0 ? suffixes.join('-').replace(/[\-\_]/gi, '-') : prefix;
+  const formattedName = `@${prefix}/${suffixPart}`;
   log(`Formatted project name: ${projectName} -> ${formattedName}`);
   return formattedName;
 }

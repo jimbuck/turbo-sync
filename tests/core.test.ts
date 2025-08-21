@@ -7,28 +7,12 @@ import { assertPackageJsonExists } from './helpers/assertions.js';
 describe('turboSync core functionality', () => {
 	let memFs: any;
 
-	beforeEach(async () => {
-		memFs = setupMemFs();
-
-		const { readdir } = await import('node:fs/promises');
-
-		const structure = {};
-		await getFSStructure('/', structure, 0);
-		console.log(Object.keys(structure)); // Log the structure for debugging
-
-		async function getFSStructure(cwd: string, structure: Record<string, any>, level: number) {
-			const files = await readdir('/', { withFileTypes: true });
-			for (const file of files) {
-				if (file.isDirectory() && level < 2) {
-					structure[file.name] = {};
-					await getFSStructure(`${cwd}/${file.name}`, structure[file.name], level + 1);
-				}
-			}
-		}
+	beforeEach(() => {
+		// memFs will be set up per test with the required file structure
 	});
 
 	afterEach(() => {
-		memFs.restore();
+		memFs?.restore();
 		vi.resetModules();
 	});
 
