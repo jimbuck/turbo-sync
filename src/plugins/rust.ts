@@ -114,7 +114,7 @@ function getProjectName({ cargoFile, cargoData, packageJson }: { cargoFile: stri
 	return formattedName;
 }
 
-async function readTomlFile<T = any>(filePath: string): Promise<T | undefined> {
+async function readTomlFile<T>(filePath: string): Promise<T | undefined> {
 	log(`Reading TOML file: ${filePath}`);
 	try {
 		const fileContent = await readFile(filePath, 'utf-8');
