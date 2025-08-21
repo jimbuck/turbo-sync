@@ -7,6 +7,14 @@ import { PackageJson, TurboSyncConfig, TurboSyncPlugin, TurboSyncPluginDefinitio
 import { readJson } from '../utils.js';
 import pMap from 'p-map';
 
+interface CargoToml {
+	package?: {
+		name?: string;
+		version?: string;
+	};
+	dependencies?: Record<string, string | { path: string }>;
+}
+
 const log = debug('turbo-sync:plugin:rust');
 
 const CARGO_FILE = 'Cargo.toml';
@@ -46,7 +54,7 @@ export const rustPlugin: TurboSyncPluginDefinition<RustWorkspacesResult> = {
 
 					const workspace = {
 						workspacePath: dirname(cargoFile),
-						workspaceName: getProjectName({ cargoFile: cargoFile, cargoData, packageJson }),
+						workspaceName: getProjectName({ cargoFile: cargoFile, cargoData: cargoData!, packageJson }),
 						cargoFile: cargoFile,
 					} as RustWorkspacesResult;
 
@@ -60,18 +68,18 @@ export const rustPlugin: TurboSyncPluginDefinition<RustWorkspacesResult> = {
 				log(`Updating package.json for cargo file: ${cargoFile}`);
 
 				log(`Reading cargo file: ${cargoFile}`);
-				const cargoData = await readTomlFile(cargoFile);
+				const cargoData = await readTomlFile<CargoToml>(cargoFile);
 				const name = getProjectName({ cargoFile, cargoData, packageJson });
 				log(`Project name: ${name}`);
 
 				const dependencies: Record<string, string> = {};
 
-				for (const [key, value] of Object.entries(cargoData.dependencies || {})) {
+				for (const [key, value] of Object.entries(cargoData?.dependencies || {})) {
 					// Handle dependencies that might be objects with path or version
 					if (value && typeof value === 'object' && 'path' in value && typeof value.path === 'string') {
 						const depPath = value.path;
 						const depCargoFile = join(dirname(cargoFile), depPath, CARGO_FILE);
-						const depCargoData = await readTomlFile(depCargoFile);
+						const depCargoData = await readTomlFile<CargoToml>(depCargoFile);
 						const depPackageJsonFile = join(dirname(cargoFile), depPath, 'package.json');
 						const depPackageJson = await readJson<PackageJson>(depPackageJsonFile);
 						const depName = getProjectName({ cargoFile: depCargoFile, cargoData: depCargoData, packageJson: depPackageJson });
@@ -94,7 +102,7 @@ export const rustPlugin: TurboSyncPluginDefinition<RustWorkspacesResult> = {
 	}
 }
 
-function getProjectName({ cargoFile, cargoData, packageJson }: { cargoFile: string, cargoData: any, packageJson: Partial<PackageJson> | undefined }): string {
+function getProjectName({ cargoFile, cargoData, packageJson }: { cargoFile: string, cargoData: CargoToml | undefined, packageJson: Partial<PackageJson> | undefined }): string {
 	if (packageJson?.name) {
 		log(`Project name from package.json: ${packageJson.name}`);
 		return packageJson.name;
@@ -106,11 +114,11 @@ function getProjectName({ cargoFile, cargoData, packageJson }: { cargoFile: stri
 	}
 	const projectName = basename(dirname(cargoFile));
 	const formattedName = `@rust/${projectName}`;
-	log(`Project name from Cargo.toml: ${cargoData.package.name}`);
+	log(`Project name computed from directory name: ${formattedName}`);
 	return formattedName;
 }
 
-async function readTomlFile<T = any>(filePath: string): Promise<T | undefined> {
+async function readTomlFile<T>(filePath: string): Promise<T | undefined> {
 	log(`Reading TOML file: ${filePath}`);
 	try {
 		const fileContent = await readFile(filePath, 'utf-8');
