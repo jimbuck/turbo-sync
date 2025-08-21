@@ -71,6 +71,10 @@ const rustPlugin = (config: TurboSyncConfig) => {
 					const depPath = value.path;
 					const depCargoFile = join(dirname(cargoFile), depPath, CARGO_FILE);
 					const depCargoData = await readTomlFile(depCargoFile);
+					if (!depCargoData) {
+						log(`Warning: Skipping path dependency '${key}' at '${depPath}' because Cargo.toml was not found or could not be read.`);
+						continue;
+					}
 					const depPackageJsonFile = join(dirname(cargoFile), depPath, 'package.json');
 					const depPackageJson = await readJson<PackageJson>(depPackageJsonFile);
 					const depName = getProjectName({ cargoFile: depCargoFile, cargoData: depCargoData, packageJson: depPackageJson });
