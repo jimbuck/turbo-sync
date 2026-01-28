@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import debug from 'debug';
 import { hasPackageJsonChanged, readJson, writeJson, getWorkspaceFiles } from './utils.js';
-import { PackageJson, RootPackageJson } from './types.js';
+import { PackageJson, RootPackageJson, TurboSyncPlugin, TurboSyncPluginDefinition, TurboSyncWorkspaceResult } from './types.js';
 import { plugins } from './plugins/index.js';
 
 const log = debug('turbo-sync:lib');
@@ -30,7 +30,7 @@ export async function turboSync({ cwd }: { cwd: string }) {
 
   const turboSyncConfig = rootPackageJson['turbo-sync'] || {};
   log('Using turbo-sync configuration:', turboSyncConfig);
-  const registeredPlugins = plugins.map(plugin => plugin(turboSyncConfig ?? {}),)
+  const registeredPlugins = plugins.map(({ build, ...plugin }) => ({ ...plugin, ...(build(turboSyncConfig ?? {})) }));
   log(`Loaded ${registeredPlugins.length} plugins`);
 
   const workspaceGlobs = rootPackageJson.workspaces || [];

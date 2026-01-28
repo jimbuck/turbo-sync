@@ -80,7 +80,8 @@ export function hasPackageJsonChanged(original: PackageJson, updated: PackageJso
   return false;
 }
 
-export async function getWorkspaceFiles({ cwd, workspaces, plugin: { workspaceFiles, ignore } }: { cwd: string; workspaces: string[], plugin: TurboSyncPlugin<any> }) {
+export async function getWorkspaceFiles({ cwd, workspaces, plugin }: { cwd: string; workspaces: string[], plugin: { workspaceFiles: string[], ignore: string[] } }) {
+  const { workspaceFiles, ignore } = plugin;
   const ignoreFiles = [...IGNORE_FILES, ...ignore];
   log(`Getting workspace files in ${cwd} for patterns: ${workspaces.join(', ')}`);
   log(`Using ignore patterns: ${ignoreFiles.join(', ')}`);
@@ -94,7 +95,7 @@ export async function getWorkspaceFiles({ cwd, workspaces, plugin: { workspaceFi
 
   const includeGlobs = workspaces.filter((glob) => !glob.startsWith("!"));
 
-  const files = await pMap(workspaceFiles.flatMap(workspaceFile => includeGlobs.map(glob => `${glob}/${workspaceFile}`)), async (workspaceGlob) => {
+  const files = await pMap(workspaceFiles.flatMap((workspaceFile: string) => includeGlobs.map((glob: string) => `${glob}/${workspaceFile}`)), async (workspaceGlob: string) => {
     return await fastGlob.glob(workspaceGlob, {
       cwd,
       onlyFiles: true,
