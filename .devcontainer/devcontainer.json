@@ -1,6 +1,16 @@
 {
-  "tasks": {
-    "build": "npm install && npm run build",
-    "test": "npm test"
+  "name": "turbo-sync",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "remoteUser": "node",
+  "features": {
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+  },
+  "postCreateCommand": "npm install",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint"
+      ]
+    }
   }
 }
