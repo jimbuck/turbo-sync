@@ -1,16 +1,18 @@
-name: Publish to npm
+name: Release
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main]
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
     environment: release
 
     permissions:
-      contents: read
+      contents: write
+      issues: write
+      pull-requests: write
       id-token: write
 
     steps:
@@ -26,4 +28,9 @@ jobs:
     - run: npm ci
     - run: npm run build
     - run: npm test
-    - run: npm publish --provenance --access public
+
+    - name: Release
+      run: npx semantic-release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NPM_CONFIG_PROVENANCE: true
