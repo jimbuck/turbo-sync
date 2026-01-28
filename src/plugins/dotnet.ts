@@ -7,7 +7,7 @@ import debug from 'debug';
 import { PackageJson, TurboSyncConfig, TurboSyncPluginDefinition, TurboSyncPlugin, TurboSyncWorkspaceResult } from '../types.js';
 import { readJson } from '../utils.js';
 
-const log = debug('turbo-sync:plugin:dotnet');
+const log = debug('turborepo-sync:plugin:dotnet');
 
 enum DotnetProjectType {
   App = 'app',
@@ -111,7 +111,7 @@ function getProjectName(projectFilePath: string): string {
 }
 
 function getProjectType(projectFilePath: string, projectFile: any): DotnetProjectType {
-  const log = debug('turbo-sync:plugin:dotnet:projectType');
+  const log = debug('turborepo-sync:plugin:dotnet:projectType');
   log(`Determining project type for: ${projectFilePath}`);
 
   const projectName = basename(projectFilePath, extname(projectFilePath));
@@ -209,7 +209,7 @@ function getProjectType(projectFilePath: string, projectFile: any): DotnetProjec
 }
 
 async function getProjectDependencies({ projectFilePath, projectFile, isPnpm }: { projectFilePath: string, projectFile: any, isPnpm: boolean }): Promise<Record<string, string>> {
-  const log = debug('turbo-sync:plugin:dotnet:dependencies');
+  const log = debug('turborepo-sync:plugin:dotnet:dependencies');
   log(`Analyzing project dependencies for: ${projectFilePath}`);
 
   const dependencies: Record<string, string> = {};

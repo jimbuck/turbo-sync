@@ -4,7 +4,7 @@ import { hasPackageJsonChanged, readJson, writeJson, getWorkspaceFiles } from '.
 import { PackageJson, RootPackageJson, TurboSyncPlugin, TurboSyncPluginDefinition, TurboSyncWorkspaceResult } from './types.js';
 import { plugins } from './plugins/index.js';
 
-const log = debug('turbo-sync:lib');
+const log = debug('turborepo-sync:lib');
 
 /**
  * Synchronizes package.json files across workspaces in a monorepo using configured plugins.
@@ -28,8 +28,8 @@ export async function turboSync({ cwd }: { cwd: string }) {
   const isPnpm = rootPackageJson.packageManager?.startsWith('pnpm') ?? false;
   log(`Detected package manager: ${isPnpm ? 'pnpm' : 'npm/yarn'}`);
 
-  const turboSyncConfig = rootPackageJson['turbo-sync'] || {};
-  log('Using turbo-sync configuration:', turboSyncConfig);
+  const turboSyncConfig = rootPackageJson['turborepo-sync'] || {};
+  log('Using turborepo-sync configuration:', turboSyncConfig);
   const registeredPlugins = plugins.map(({ build, ...plugin }) => ({ ...plugin, ...(build(turboSyncConfig ?? {})) }));
   log(`Loaded ${registeredPlugins.length} plugins`);
 

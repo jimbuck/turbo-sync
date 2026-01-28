@@ -109,10 +109,10 @@ name = "custom-crate"
 version = "0.1.0"
 edition = "2021"
 
-[package.metadata.turbo-sync]
+[package.metadata.turborepo-sync]
 name = "custom-package-name"
 
-[package.metadata.turbo-sync.scripts]
+[package.metadata.turborepo-sync.scripts]
 build = "cargo build --release"
 test = "cargo test -- --nocapture"
 

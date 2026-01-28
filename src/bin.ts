@@ -5,9 +5,9 @@ import debug from 'debug';
 import { program } from 'commander';
 import { turboSync } from './index.js';
 
-const log = debug('turbo-sync');
+const log = debug('turborepo-sync');
 
-log('Starting turbo-sync');
+log('Starting turborepo-sync');
 
 // Check if DEBUG environment variable is set
 if (process.env.DEBUG) {
@@ -17,18 +17,18 @@ if (process.env.DEBUG) {
 // Process debug flags from command line
 const debugFlagIndex = process.argv.indexOf('--debug');
 if (debugFlagIndex !== -1) {
-	debug.enable('turbo-sync:*');
+	debug.enable('turborepo-sync:*');
 	log('Debug mode enabled via command line flag');
 }
 
 program
-	.name('turbo-sync')
+	.name('turborepo-sync')
 	.description('CLI tool to update package.json files for non-JS projects in a turborepo repository')
 	.option('--debug', 'Enable debug logging')
 	.argument('[root]', 'Root directory of the repository (defaults to current working directory)')
 	.action(async (root?: string, options?: { debug?: boolean }) => {
 		if (options?.debug) {
-			debug.enable('turbo-sync:*');
+			debug.enable('turborepo-sync:*');
 			log('Debug logging enabled');
 		}
 
@@ -48,4 +48,4 @@ program
 
 program.parse(process.argv);
 
-log('turbo-sync execution completed');
+log('turborepo-sync execution completed');
