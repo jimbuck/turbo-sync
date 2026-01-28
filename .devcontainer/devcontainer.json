@@ -1,5 +1,5 @@
 {
-  "name": "turbo-sync",
+  "name": "turborepo-sync",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
   "remoteUser": "node",
   "features": {

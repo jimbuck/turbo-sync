@@ -32,7 +32,7 @@ export class ProjectBuilder {
 	}
 
 	withTurboSyncConfig(config: Record<string, any>) {
-		this.structure.packageJson!['turbo-sync'] = config;
+		this.structure.packageJson!['turborepo-sync'] = config;
 		return this;
 	}
 

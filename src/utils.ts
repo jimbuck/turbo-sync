@@ -6,7 +6,7 @@ import pMap from 'p-map';
 import { PackageJson, TurboSyncPlugin } from './types.js';
 
 
-const log = debug('turbo-sync:file-utils');
+const log = debug('turborepo-sync:file-utils');
 
 export const IGNORE_FILES = ['**/node_modules/**'];
 

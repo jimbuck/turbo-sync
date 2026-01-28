@@ -12,7 +12,7 @@ interface CargoToml {
 		name?: string;
 		version?: string;
 		metadata?: {
-			'turbo-sync'?: {
+			'turborepo-sync'?: {
 				name?: string;
 				scripts?: Record<string, string>;
 			};
@@ -21,7 +21,7 @@ interface CargoToml {
 	dependencies?: Record<string, string | { path: string }>;
 }
 
-const log = debug('turbo-sync:plugin:rust');
+const log = debug('turborepo-sync:plugin:rust');
 
 const CARGO_FILE = 'Cargo.toml';
 
@@ -99,7 +99,7 @@ export const rustPlugin: TurboSyncPluginDefinition<RustWorkspacesResult> = {
 				log('Preparing updated package.json');
 
 				// Get custom scripts from metadata if available
-				const customScripts = cargoData?.package?.metadata?.['turbo-sync']?.scripts || {};
+				const customScripts = cargoData?.package?.metadata?.['turborepo-sync']?.scripts || {};
 				const scripts = { ...DEFAULT_SCRIPTS, ...customScripts };
 
 				return {
@@ -119,8 +119,8 @@ function getProjectName({ cargoFile, cargoData, packageJson }: { cargoFile: stri
 	}
 
 	// Check for custom metadata first
-	if (cargoData?.package?.metadata?.['turbo-sync']?.name) {
-		const customName = cargoData.package.metadata['turbo-sync'].name;
+	if (cargoData?.package?.metadata?.['turborepo-sync']?.name) {
+		const customName = cargoData.package.metadata['turborepo-sync'].name;
 		log(`Project name from Cargo.toml metadata: ${customName}`);
 		return customName;
 	}

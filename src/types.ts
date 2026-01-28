@@ -23,7 +23,7 @@ export interface TurboSyncConfig {
 export interface RootPackageJson {
   workspaces: string[];
   packageManager?: string;
-  'turbo-sync'?: TurboSyncConfig;
+  'turborepo-sync'?: TurboSyncConfig;
 }
 
 export interface PackageJson {

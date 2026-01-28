@@ -1,98 +1,50 @@
-# turbo-sync
+# turborepo-sync
 
 One repo, many languages, zero headaches!
 
-## Why turbo-sync?
+## Why turborepo-sync?
 
-Managing monorepos with multiple languages can be a real headache. Turborepo works great for JavaScript projects, but once you start adding .NET, Rust, or other languages to the mix, things get complicated fast.
-
-When you have a mix of JS and non-JS projects, you end up with two worlds that don't talk to each other:
-
-- Your JS projects with neat package.json files and script commands
-- Your other projects (.NET, Rust, etc.) that Turborepo doesn't understand
-
-This leads to inconsistent workflows, broken dependency graphs, and that frustrating feeling of "why can't all my projects just work together?"
-
-That's where turbo-sync comes in! It bridges the gap by automatically:
-
-1. Discovering your non-JS projects (.NET, Rust, etc.)
-2. Creating or updating package.json files for them
-3. Adding appropriate scripts based on project type
-4. Mapping dependencies correctly in your workspace
-5. Supporting custom configuration and metadata
-
-The result? A unified workflow where `turbo build` or `turbo test` just works across your entire codebase, regardless of language. Your dependency graph becomes complete, incremental builds work properly, and you get all the benefits of Turborepo for your entire project.
-
-No more context switching between different build systems or remembering different commands for different project types. Just a smooth, consistent developer experience across your whole monorepo.
-
-## Status
-
-turbo-sync is currently under active development with the following features implemented:
-
-✅ **Core Architecture**
-- Plugin-based architecture for extensibility
-- Automatic project discovery
-- Package.json generation and updates
-- Workspace dependency resolution
-
-✅ **.NET Support**
-- Automatic detection of .csproj, .fsproj, and .vbproj files
-- Project type detection (app, library, test, e2e)
-- Project reference dependency mapping
-- Customizable scripts via configuration
-
-✅ **Rust Support**
-- Automatic detection of Cargo.toml files
-- Path dependency analysis and workspace mapping
-- Custom naming and scripts via Cargo.toml metadata
-- Standard Cargo command integration
-
-✅ **Testing**
-- Comprehensive test suite with 100% pass rate
-- In-memory filesystem for fast, isolated testing
-- Plugin-specific test coverage
+Turborepo doesn't know about your non-JS projects. turborepo-sync fixes that by generating/updating `package.json` files for .NET, Rust, and other projects — including their cross-project dependencies — so `turbo build` and `turbo test` work across your entire monorepo.
 
 ## Installation
 
-> **Note:** This CLI tool is currently in development. To use it, clone the repository and build it locally.
+Run it directly with npx:
 
 ```sh
-git clone <repository-url>
-cd turbo-sync
-npm install
-npm run build
+npx turborepo-sync
 ```
 
-You can then run it locally with:
+Or install it globally:
 
 ```sh
-node dist/bin.js
-```
+# npm
+npm install -g turborepo-sync
 
-Or install globally from the built version:
+# pnpm
+pnpm add -g turborepo-sync
 
-```sh
-npm install -g .
+# yarn
+yarn global add turborepo-sync
 ```
 
 ## Usage
 
-The `turbo-sync` command can be used to update `package.json` files for non-JS projects in a turborepo repository.
+The `turborepo-sync` command can be used to update `package.json` files for non-JS projects in a turborepo repository.
 
 ### Update all projects
 
 To update all projects in the repository, run the following command:
 
 ```sh
-turbo-sync
+turborepo-sync
 ```
 
 ### Specify a custom root directory
 
-By default, `turbo-sync` uses the current working directory as the root. To specify a different root directory:
+By default, `turborepo-sync` uses the current working directory as the root. To specify a different root directory:
 
 ```sh
-turbo-sync /path/to/your/repo
+turborepo-sync /path/to/your/repo
 ```
 
 ### Enable Debug Logging
@@ -100,34 +52,34 @@ turbo-sync /path/to/your/repo
 To enable debug logging for troubleshooting, use the `--debug` flag:
 
 ```sh
-turbo-sync --debug
+turborepo-sync --debug
 ```
 
 You can also enable debug logging by setting the DEBUG environment variable:
 
 ```sh
 # On Windows
-set DEBUG=turbo-sync:*
-turbo-sync
+set DEBUG=turborepo-sync:*
+turborepo-sync
 
 # On Linux/macOS
-DEBUG=turbo-sync:* turbo-sync
+DEBUG=turborepo-sync:* turborepo-sync
 ```
 
 ## Configuration
 
-The `turbo-sync` CLI tool reads custom configuration from the `turbo-sync` property in the root `package.json`. Here is an example configuration:
+The `turborepo-sync` CLI tool reads custom configuration from the `turborepo-sync` property in the root `package.json`. Here is an example configuration:
 
 ```json
 {
   "workspaces": ["workspace1", "workspace2", "path/to/project"],
-  "turbo-sync": {}
+  "turborepo-sync": {}
 }
 ```
 
 ## Plugins
 
-turbo-sync uses a plugin architecture to support different project types. Currently supported:
+turborepo-sync uses a plugin architecture to support different project types. Currently supported:
 
 ### .NET Plugin
 
@@ -164,11 +116,11 @@ The following scripts are assigned to projects based on their type:
 
 #### Configuration
 
-You can override the default scripts and script assignments in the `turbo-sync.dotnet` configuration:
+You can override the default scripts and script assignments in the `turborepo-sync.dotnet` configuration:
 
 ```json
 {
-  "turbo-sync": {
+  "turborepo-sync": {
     "dotnet": {
       "scripts": {
         "dev": "dotnet watch run",
@@ -235,105 +187,48 @@ You can customize the generated package.json by adding metadata to your Cargo.to
 name = "my-crate"
 version = "0.1.0"
 
-[package.metadata.turbo-sync]
+[package.metadata.turborepo-sync]
 name = "custom-package-name"
 
-[package.metadata.turbo-sync.scripts]
+[package.metadata.turborepo-sync.scripts]
 build = "cargo build --release"
 test = "cargo test -- --nocapture"
 ```
 
 This will generate a package.json with the custom name and scripts instead of the defaults.
 
-## Plugin Development Guide
 
-To develop a new plugin for the `turbo-sync` CLI tool, follow these steps:
+## Status
 
-1. Create a new TypeScript file in the `src/plugins/` directory (e.g., `src/plugins/myplugin.ts`)
-2. Implement the `TurboSyncPluginDefinition` interface by creating a plugin definition object
-3. Export your plugin definition
-4. Register the plugin by adding it to the plugins array in `src/plugins/index.ts`
+turborepo-sync is currently under active development with the following features implemented:
 
-Here is an example of a simple plugin implementation:
+✅ **Core Architecture**
+- Plugin-based architecture for extensibility
+- Automatic project discovery
+- Package.json generation and updates
+- Workspace dependency resolution
 
-```typescript
-import { join, basename, dirname } from 'node:path';
-import { readFile } from 'node:fs/promises';
-import debug from 'debug';
-import { PackageJson, TurboSyncConfig, TurboSyncPlugin, TurboSyncPluginDefinition, TurboSyncWorkspaceResult } from '../types.js';
+✅ **.NET Support**
+- Automatic detection of .csproj, .fsproj, and .vbproj files
+- Project type detection (app, library, test, e2e)
+- Project reference dependency mapping
+- Customizable scripts via configuration
 
-const log = debug('turbo-sync:plugin:myplugin');
+✅ **Rust Support**
+- Automatic detection of Cargo.toml files
+- Path dependency analysis and workspace mapping
+- Custom naming and scripts via Cargo.toml metadata
+- Standard Cargo command integration
 
-// Define plugin-specific configuration interface (optional)
-export interface MyPluginConfig {
-  scripts?: Record<string, string>;
-}
+✅ **Testing**
+- Comprehensive test suite with 100% pass rate
+- In-memory filesystem for fast, isolated testing
+- Plugin-specific test coverage
 
-// Define plugin-specific workspace result interface (optional)
-export interface MyWorkspaceResult extends TurboSyncWorkspaceResult {
-  projectFile: string;
-}
 
-// Create the plugin definition
-export const myPlugin: TurboSyncPluginDefinition<MyWorkspaceResult> = {
-  name: 'myplugin',
-  workspaceFiles: ['*.myext'],  // File patterns to look for
-  ignore: ['**/temp/**'],       // Patterns to ignore
-  
-  build(config: TurboSyncConfig) {
-    // Extract plugin-specific config
-    const myConfig = (config.myplugin ?? {}) as MyPluginConfig;
-    log('Initializing my plugin with config:', myConfig);
+## Contributing
 
-    // Return a plugin object that implements the TurboSyncPlugin interface
-    return {
-      // Find workspaces based on the files discovered
-      getWorkspaces: async ({ files }) => {
-        log(`Processing ${files.length} files`);
-        
-        return files.map(file => ({
-          workspacePath: dirname(file),
-          workspaceName: `@my/${basename(dirname(file))}`,
-          projectFile: file
-        })) as MyWorkspaceResult[];
-      },
-      
-      // Update package.json for each workspace
-      updateWorkspace: async ({ packageJson, projectFile }) => {
-        log(`Updating package.json for project: ${projectFile}`);
-        
-        // Read and parse your project file here
-        const content = await readFile(projectFile, 'utf-8');
-        // ... process content ...
-        
-        // Return updated package.json
-        return {
-          ...packageJson,
-          scripts: {
-            ...packageJson.scripts,
-            ...myConfig.scripts,
-            'custom-script': 'echo "Hello from my plugin"'
-          }
-        };
-      }
-    } as TurboSyncPlugin<MyWorkspaceResult>;
-  }
-};
-```
-
-After creating your plugin, add it to the plugins list in `src/plugins/index.ts`:
-
-```typescript
-import { dotnetPlugin } from './dotnet.js';
-import { rustPlugin } from './rust.js';
-import { myPlugin } from './myplugin.js';
-
-export const plugins = [
-  dotnetPlugin,
-  rustPlugin,
-  myPlugin,
-];
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for information on developing plugins and contributing to the project.
 
 ## License
 

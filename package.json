@@ -1,15 +1,43 @@
 {
-  "name": "turbo-sync",
+  "name": "turborepo-sync",
   "version": "0.1.0",
   "description": "CLI tool to update package.json files for non-JS projects in a turborepo repository",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jimbuck/turborepo-sync.git"
+  },
+  "keywords": [
+    "turborepo",
+    "monorepo",
+    "cli",
+    "dotnet",
+    "rust",
+    "workspace"
+  ],
   "main": "./dist/index.js",
-  "bin": "./dist/bin.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "turborepo-sync": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "commander": "^8.0.0",
